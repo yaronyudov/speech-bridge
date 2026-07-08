@@ -1,0 +1,53 @@
+# ---------------------------------------------------------------------------
+# speech-bridge configuration — copy to `config.yaml` and edit.
+# Every key here can also be provided as an environment variable or in `.env`
+# (env vars and .env take priority over this file).
+# ---------------------------------------------------------------------------
+
+# Subsystem toggles (partial modes: STT-only / TTS-only / both)
+ENABLE_STT: true
+ENABLE_TTS: true
+
+# Engine selection: local | azure | openai | aws
+STT_ENGINE: local
+TTS_ENGINE: local
+
+# Local STT (faster-whisper)
+STT_LOCAL_MODEL_SIZE: large-v3
+STT_LOCAL_DEVICE: auto          # auto | cuda | cpu
+STT_LOCAL_COMPUTE_TYPE: auto    # auto | float16 | int8 | int8_float16 | float32
+STT_LOCAL_BEAM_SIZE: 5
+
+# Live-streaming STT tuning
+STT_STREAM_INFER_INTERVAL_SECONDS: 1.5
+STT_STREAM_MAX_SEGMENT_SECONDS: 12.0
+STT_STREAM_SILENCE_RMS_THRESHOLD: 300
+STT_STREAM_TRAILING_SILENCE_SECONDS: 0.6
+STT_STREAM_OPENAI_FLUSH_SECONDS: 3.0
+
+# Local TTS: edge (default) | coqui
+TTS_LOCAL_BACKEND: edge
+TTS_COQUI_MODEL_NAME: tts_models/multilingual/multi-dataset/xtts_v2
+TTS_COQUI_SPEAKER: Ana Florence
+
+# Azure Speech Services
+AZURE_SPEECH_KEY: ""
+AZURE_SPEECH_REGION: ""
+
+# OpenAI
+OPENAI_API_KEY: ""
+OPENAI_STT_MODEL: whisper-1
+OPENAI_TTS_MODEL: tts-1
+OPENAI_TTS_VOICE: alloy
+
+# AWS
+AWS_ACCESS_KEY_ID: ""
+AWS_SECRET_ACCESS_KEY: ""
+AWS_REGION: us-east-1
+AWS_POLLY_ENGINE: neural
+
+# Server
+HOST: 0.0.0.0
+PORT: 8000
+LOG_LEVEL: INFO
+TEMP_DIR: ""
