@@ -6,6 +6,8 @@ A highly modular, configuration-driven FastAPI service for hybrid **Speech-to-Te
 - **Strategy + Factory architecture** — engines are interchangeable strategies behind `BaseSTTEngine` / `BaseTTSEngine`; factories pick the implementation from config at startup.
 - **Live low-latency STT** — WebSocket streaming with partial/final results for local (faster-whisper rolling-buffer + VAD) and remote (Azure push streams, Amazon Transcribe Streaming) setups.
 
+> **New here? Start with the step-by-step guide: [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)** — zero to a working service, locally or on AWS/Azure/GCP/OCI.
+
 ---
 
 ## Contents
@@ -397,6 +399,9 @@ Domain errors derive from `SpeechEngineError` (`core/exceptions.py`), each carry
 |---|---|---|---|
 | `UnsupportedLanguageError` | 400 | 4400 | Language outside {en, he, ar} or unsupported by the engine |
 | `AudioProcessingError` | 400 | 4400 | Audio could not be decoded/converted |
+| `AuthError` | 401 | 4401 | Missing or invalid API key (when `ENABLE_AUTH=true`) |
+| `RequestTooLargeError` | 413 | 4413 | Upload / text / WS session exceeded a configured cap |
+| `RateLimitError` | 429 | 4429 | Client exceeded `RATE_LIMIT` |
 | `ConfigurationError` | 500 | 1011 | Missing credentials / package / disabled subsystem |
 | `TranscriptionError` / `SynthesisError` | 500 | 1011 | Engine failure |
 | `RemoteServiceError` | 502 | 1011 | Provider timeout / auth / transport failure |
