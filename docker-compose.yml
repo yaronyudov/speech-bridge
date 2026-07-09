@@ -13,7 +13,9 @@ services:
     ports:
       - "${PORT:-8000}:8000"
     env_file:
-      - .env
+      # Optional: defaults are fine for a local-engine demo without a .env.
+      - path: .env
+        required: false
     environment:
       # Ensure the in-container cache path matches the mounted volume.
       HF_HOME: /models

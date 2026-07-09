@@ -7,8 +7,10 @@
 # Function that scales the Container App to zero (see enforcement.tf + README).
 # ---------------------------------------------------------------------------
 
+# NOTE: azurerm requires at least one notification block on a budget, so the
+# regular (alerts-only) budget is skipped when no alert emails are configured.
 resource "azurerm_consumption_budget_resource_group" "regular" {
-  count             = var.enable_budget ? 1 : 0
+  count             = var.enable_budget && length(var.alert_emails) > 0 ? 1 : 0
   name              = "${var.name}-monthly"
   resource_group_id = local.rg_id
   amount            = var.monthly_budget

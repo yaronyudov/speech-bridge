@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 from speech_engine.config import get_settings
 from speech_engine.core.constants import require_language
-from speech_engine.core.exceptions import SpeechEngineError
+from speech_engine.core.exceptions import RequestTooLargeError, SpeechEngineError
 from speech_engine.core.security import security_dependencies
 from speech_engine.core.tts.factory import get_tts_engine
 
@@ -23,8 +23,7 @@ class SynthesisRequest(BaseModel):
     text: str = Field(
         ...,
         min_length=1,
-        max_length=5000,
-        description="Plain text to synthesize.",
+        description="Plain text to synthesize (max length: MAX_TEXT_CHARS).",
         examples=["hello world"],
     )
     language: str = Field(
@@ -51,12 +50,17 @@ async def synthesize_speech(payload: SynthesisRequest) -> FileResponse:
     The generated file is deleted after the response is sent
     (``BackgroundTasks`` attached to the ``FileResponse``).
     """
+    settings = get_settings()
     if not payload.text.strip():
         raise HTTPException(status_code=400, detail="Text must not be blank.")
+    if settings.MAX_TEXT_CHARS and len(payload.text) > settings.MAX_TEXT_CHARS:
+        raise RequestTooLargeError(
+            f"Text exceeds the maximum length of {settings.MAX_TEXT_CHARS} characters."
+        )
     lang = require_language(payload.language)  # raises 400 via global handler
 
     engine = get_tts_engine()
-    output_dir = get_settings().resolve_temp_dir()
+    output_dir = settings.resolve_temp_dir()
     output_path = output_dir / f"tts_{uuid4().hex}.{engine.file_extension}"
 
     logger.info(

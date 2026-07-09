@@ -36,7 +36,28 @@ All notable changes to this project are documented here. The format is based on
   audio, factories, WebSocket plumbing, and the full API (auth, rate limiting,
   upload caps, streaming) with whisper/edge-tts stubbed.
 - Docs: `infra/terraform/README.md`, `CONTRIBUTING.md`, `SECURITY.md`,
-  `docs/PRODUCTION.md`, and expanded root README (deployment + cost controls).
+  `docs/PRODUCTION.md`, `docs/GETTING_STARTED.md` (step-by-step build / dev /
+  deploy guide), and expanded root README (deployment + cost controls).
+- `.dockerignore`; `--api-key` support in both example clients; the GCP
+  kill-switch function deploy script
+  (`infra/terraform/scripts/deploy_gcp_killswitch.sh`).
+
+### Fixed
+- `MAX_TEXT_CHARS` is now actually enforced on `/synthesize` (413); it was
+  previously a dead setting shadowed by a hardcoded schema limit.
+- Live-session time/size cap violations are now surfaced to the client as an
+  error frame + close 4413 on the Azure and AWS streaming engines too (they
+  previously died silently inside the audio pump task).
+- `OTEL_SERVICE_NAME` / `OTEL_EXPORTER_OTLP_ENDPOINT` from `.env`/`config.yaml`
+  are exported to the process environment so the OpenTelemetry SDK sees them.
+- AWS App Runner now attaches the kill-switch IAM role
+  (`instance_role_arn`), making the grace-budget deny policy effective without
+  manual wiring.
+- GCP: granted the Google billing-budget service account publish rights on the
+  kill-switch Pub/Sub topic (notifications never arrived without it).
+- Azure: the alerts budget is skipped when no alert emails are configured
+  (azurerm rejects a budget with zero notifications).
+- `docker compose up` no longer fails when `.env` is absent.
 
 ## [1.0.0]
 

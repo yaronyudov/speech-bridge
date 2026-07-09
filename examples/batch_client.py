@@ -20,13 +20,20 @@ import requests
 DEFAULT_BASE_URL = "http://localhost:8000/api/v1"
 
 
-def transcribe(base_url: str, audio_path: str, language: str | None) -> None:
+def _headers(api_key: str | None) -> dict:
+    return {"X-API-Key": api_key} if api_key else {}
+
+
+def transcribe(
+    base_url: str, audio_path: str, language: str | None, api_key: str | None
+) -> None:
     params = {"language": language} if language else {}
     with open(audio_path, "rb") as audio_file:
         response = requests.post(
             f"{base_url}/transcribe",
             params=params,
             files={"audio": (audio_path, audio_file)},
+            headers=_headers(api_key),
             timeout=600,
         )
     if response.status_code != 200:
@@ -34,10 +41,13 @@ def transcribe(base_url: str, audio_path: str, language: str | None) -> None:
     print(response.json()["text"])
 
 
-def synthesize(base_url: str, text: str, language: str, out_path: str) -> None:
+def synthesize(
+    base_url: str, text: str, language: str, out_path: str, api_key: str | None
+) -> None:
     response = requests.post(
         f"{base_url}/synthesize",
         json={"text": text, "language": language},
+        headers=_headers(api_key),
         timeout=600,
     )
     if response.status_code != 200:
@@ -50,6 +60,9 @@ def synthesize(base_url: str, text: str, language: str, out_path: str) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-url", default=DEFAULT_BASE_URL)
+    parser.add_argument(
+        "--api-key", default=None, help="API key when the server has ENABLE_AUTH=true"
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     p_stt = subparsers.add_parser("transcribe", help="Batch speech-to-text")
@@ -63,9 +76,9 @@ def main() -> None:
 
     args = parser.parse_args()
     if args.command == "transcribe":
-        transcribe(args.base_url, args.audio, args.language)
+        transcribe(args.base_url, args.audio, args.language, args.api_key)
     else:
-        synthesize(args.base_url, args.text, args.language, args.out)
+        synthesize(args.base_url, args.text, args.language, args.out, args.api_key)
 
 
 if __name__ == "__main__":

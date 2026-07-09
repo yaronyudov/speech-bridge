@@ -20,3 +20,12 @@ resource "google_pubsub_topic" "killswitch" {
   name   = "${var.name}-killswitch"
   labels = local.common_labels
 }
+
+# The Google-managed billing-budget service account must be allowed to
+# publish, or grace-budget notifications never reach the topic.
+resource "google_pubsub_topic_iam_member" "budget_publisher" {
+  count  = var.enable_hard_cap ? 1 : 0
+  topic  = google_pubsub_topic.killswitch[0].id
+  role   = "roles/pubsub.publisher"
+  member = "serviceAccount:billing-budget-alert@system.gserviceaccount.com"
+}

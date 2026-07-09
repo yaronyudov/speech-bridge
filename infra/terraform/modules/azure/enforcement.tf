@@ -5,8 +5,8 @@
 #   * emails the operators, and
 #   * (optional) calls var.killswitch_webhook_uri — point this at an Azure
 #     Automation runbook or Function that scales the Container App to 0
-#     replicas / deallocates the VM. A sample runbook is described in the
-#     module README.
+#     replicas / deallocates the VM. A sample runbook body is in
+#     infra/terraform/README.md ("Wiring the kill-switch automation").
 #
 # The var.max_instances replica cap remains the always-on architectural guard.
 # ---------------------------------------------------------------------------

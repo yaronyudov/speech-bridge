@@ -126,7 +126,16 @@ if settings.ENABLE_METRICS:
 
 if settings.OTEL_EXPORTER_OTLP_ENDPOINT:
     try:
+        import os
+
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
+        # The OTel SDK reads these from the process environment; export them
+        # so values supplied via .env / config.yaml take effect too.
+        os.environ.setdefault(
+            "OTEL_EXPORTER_OTLP_ENDPOINT", settings.OTEL_EXPORTER_OTLP_ENDPOINT
+        )
+        os.environ.setdefault("OTEL_SERVICE_NAME", settings.OTEL_SERVICE_NAME)
 
         FastAPIInstrumentor.instrument_app(app)
         logger.info(

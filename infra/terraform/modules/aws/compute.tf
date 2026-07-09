@@ -67,6 +67,10 @@ resource "aws_apprunner_service" "this" {
   instance_configuration {
     cpu    = var.cpu
     memory = var.memory
+    # Give the app the kill-switch target role: when the grace budget trips,
+    # the Budget Action attaches a deny policy to this role, revoking the
+    # app's access to the paid speech APIs (see enforcement.tf).
+    instance_role_arn = local.killswitch_iam ? aws_iam_role.killswitch_target[0].arn : null
   }
 
   health_check_configuration {

@@ -3,8 +3,8 @@
 #
 # This creates a Notifications (ONS) topic + email subscriptions for the
 # operators. For automated enforcement, subscribe an OCI Function to this
-# topic that stops the Container Instance / Compute VM, and trigger it from
-# the grace budget alert via an Events rule (see the module README). The
+# topic that stops the Container Instance / Compute VM — see
+# infra/terraform/README.md ("Wiring the kill-switch automation"). The
 # single fixed-size Container Instance is itself the architectural cost cap.
 # ---------------------------------------------------------------------------
 

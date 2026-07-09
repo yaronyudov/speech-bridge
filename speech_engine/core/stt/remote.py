@@ -213,6 +213,10 @@ class AzureSTTEngine(BaseSTTEngine):
                         push_stream.write(bytes(data))
                     elif kind in (MSG_STOP, MSG_DISCONNECT):
                         break
+            except SpeechEngineError as exc:
+                # e.g. a session time/size cap raised by the capped socket —
+                # surface it to the consumer instead of dying silently.
+                loop.call_soon_threadsafe(events.put_nowait, ("app_error", exc))
             finally:
                 # Closing the push stream flushes Azure's final results and
                 # ends the session (-> "done" via session_stopped/canceled).
@@ -227,6 +231,8 @@ class AzureSTTEngine(BaseSTTEngine):
                 kind, payload = await events.get()
                 if kind == "done":
                     break
+                if kind == "app_error":
+                    raise payload
                 if kind == "error":
                     raise RemoteServiceError(
                         f"Azure speech recognition failed: {payload}"
@@ -455,6 +461,10 @@ class AWSSTTEngine(BaseSTTEngine):
                         )
                     elif kind in (MSG_STOP, MSG_DISCONNECT):
                         break
+            except SpeechEngineError as exc:
+                # e.g. a session time/size cap raised by the capped socket —
+                # surface it to the consumer instead of dying silently.
+                await events.put(("app_error", exc))
             finally:
                 try:
                     await stream.input_stream.end_stream()
@@ -489,6 +499,8 @@ class AWSSTTEngine(BaseSTTEngine):
                 kind, payload = await events.get()
                 if kind == "done":
                     break
+                if kind == "app_error":
+                    raise payload
                 if kind == "error":
                     raise RemoteServiceError(
                         f"Amazon Transcribe streaming failed: {payload}"

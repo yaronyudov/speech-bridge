@@ -103,6 +103,37 @@ AWS and GCP can fully self-enforce; Azure and OCI notify + trigger automation
 you wire to the provided webhook/topic. In all four, the architectural caps
 (layer 1) remain a guaranteed ceiling even if the automation is not deployed.
 
+### Wiring the kill-switch automation
+
+**AWS** — nothing to wire. The Budget Action is native: `vm` runtime stops the
+EC2 instance via SSM; serverless attaches the deny policy to the App Runner
+instance role (already set on the service), cutting the app's access to the
+paid Transcribe/Polly/Bedrock APIs.
+
+**GCP** — deploy the provided function against the module's topic:
+
+```bash
+./infra/terraform/scripts/deploy_gcp_killswitch.sh \
+    <project> <region> speech-bridge speech-bridge-killswitch scale_zero
+# grant the function's service account roles/run.admin
+# (or 'disable_billing' + Billing Account Administrator for the nuclear mode)
+```
+
+**Azure** — point `killswitch_webhook_uri` at an Automation runbook / Function
+that scales the app to zero. Minimal runbook body (PowerShell, using a managed
+identity with Contributor on the resource group):
+
+```powershell
+Connect-AzAccount -Identity
+az containerapp update -n speech-bridge -g speech-bridge-rg --min-replicas 0 --max-replicas 0
+# vm runtime instead: az vm deallocate -g speech-bridge-rg -n speech-bridge-vm
+```
+
+**OCI** — subscribe an OCI Function to the module's ONS topic
+(`killswitch_topic_id` output) that calls
+`container_instances.stop_container_instance()` /
+`core.InstanceAction("SOFTSTOP")` on the deployed OCIDs (also module outputs).
+
 ## Secrets
 
 With `create_secrets = true` the module stores `secrets = { NAME = value }` in

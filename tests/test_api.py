@@ -96,6 +96,19 @@ def test_synthesize_rejects_unsupported_language(configure_env, stub_edge_tts):
         assert r.status_code == 400
 
 
+def test_synthesize_text_cap(configure_env, stub_edge_tts):
+    with _client(configure_env, ENABLE_STT="false", MAX_TEXT_CHARS="10") as client:
+        r = client.post(
+            "/api/v1/synthesize",
+            json={"text": "x" * 11, "language": "en"},
+        )
+        assert r.status_code == 413
+        ok = client.post(
+            "/api/v1/synthesize", json={"text": "x" * 10, "language": "en"}
+        )
+        assert ok.status_code == 200
+
+
 def test_auth_enforced(configure_env, stub_edge_tts):
     with _client(
         configure_env, ENABLE_STT="false", ENABLE_AUTH="true", API_KEYS="good-key"
@@ -162,6 +175,22 @@ def test_live_stream_partial_then_final(configure_env, stub_whisper):
             ws.send_text(json.dumps({"event": "stop"}))
             closed = ws.receive()
             assert closed["type"] == "websocket.close" and closed["code"] == 1000
+
+
+def test_live_stream_byte_cap(configure_env, stub_whisper):
+    loud = (np.sin(np.linspace(0, 400, 8000)) * 9000).astype(np.int16).tobytes()
+    with _client(
+        configure_env,
+        ENABLE_TTS="false",
+        STT_LOCAL_MODEL_SIZE="tiny",
+        MAX_WS_BYTES="1000",  # 16000-byte frame blows straight past the cap
+    ) as client:
+        with client.websocket_connect("/api/v1/live-transcribe?language=en") as ws:
+            ws.send_bytes(loud)  # 16000 bytes > 1000-byte cap
+            frame = ws.receive_json()
+            assert frame["type"] == "error"
+            closed = ws.receive()
+            assert closed["type"] == "websocket.close" and closed["code"] == 4413
 
 
 def test_live_stream_rejects_unsupported_language(configure_env, stub_whisper):
