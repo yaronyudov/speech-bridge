@@ -1,0 +1,53 @@
+name: Deploy
+
+# Manual, cloud-selectable deployment. Builds & pushes the image, then runs
+# `terraform apply` for the chosen module. Guard the referenced GitHub
+# Environment with required reviewers so applies need approval.
+
+on:
+  workflow_dispatch:
+    inputs:
+      cloud:
+        description: Target cloud
+        required: true
+        type: choice
+        options: [aws, azure, gcp, oci]
+      confirm:
+        description: Type "deploy" to confirm
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write # OIDC federation to the cloud provider
+
+jobs:
+  deploy:
+    if: ${{ inputs.confirm == 'deploy' }}
+    runs-on: ubuntu-latest
+    environment: production # add required reviewers in repo settings
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+
+      # --- Authenticate to the selected cloud via OIDC (fill in as needed) ---
+      # AWS:   aws-actions/configure-aws-credentials@v4 (role-to-assume)
+      # GCP:   google-github-actions/auth@v2 (workload_identity_provider)
+      # Azure: azure/login@v2 (client-id/tenant-id/subscription-id)
+      # OCI:   configure ~/.oci via secrets
+      - name: Cloud auth placeholder
+        run: echo "Configure OIDC auth for '${{ inputs.cloud }}' before apply."
+
+      - name: Build & push image
+        run: |
+          echo "Run: ./infra/terraform/scripts/build_and_push.sh ${{ inputs.cloud }} <registry>"
+
+      - name: Terraform apply
+        working-directory: infra/terraform/modules/${{ inputs.cloud }}
+        run: |
+          terraform init -input=false
+          terraform apply -auto-approve \
+            -var-file=../../envs/${{ inputs.cloud }}.tfvars

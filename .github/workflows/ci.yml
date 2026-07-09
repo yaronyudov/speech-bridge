@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: Lint, type-check & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Ruff lint
+        run: ruff check speech_engine tests
+
+      - name: Ruff format check
+        run: ruff format --check speech_engine tests
+
+      - name: Type-check (mypy)
+        run: mypy speech_engine
+
+      - name: Tests
+        run: pytest -q
+
+  docker:
+    name: Build image & scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t speech-bridge:ci .
+
+      - name: Scan image (Trivy)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: speech-bridge:ci
+          format: table
+          exit-code: "0" # report only; flip to "1" to fail on findings
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+
+  terraform:
+    name: Terraform fmt & validate
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        module: [aws, azure, gcp, oci]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+
+      - name: Format check
+        run: terraform fmt -check -recursive infra/terraform
+
+      - name: Validate ${{ matrix.module }}
+        working-directory: infra/terraform/modules/${{ matrix.module }}
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate
+
+      - name: tflint ${{ matrix.module }}
+        uses: terraform-linters/setup-tflint@v4
+      - run: tflint --chdir=infra/terraform/modules/${{ matrix.module }} --no-color
