@@ -46,6 +46,27 @@ AWS_SECRET_ACCESS_KEY: ""
 AWS_REGION: us-east-1
 AWS_POLLY_ENGINE: neural
 
+# Security: authentication & rate limiting
+ENABLE_AUTH: false
+API_KEYS: ""            # comma-separated, e.g. "key1,key2"
+API_KEY_HEADER: X-API-Key
+ENABLE_RATE_LIMIT: true
+RATE_LIMIT: 60/minute
+MAX_UPLOAD_BYTES: 26214400
+MAX_TEXT_CHARS: 5000
+MAX_WS_SESSION_SECONDS: 300
+MAX_WS_BYTES: 104857600
+CORS_ALLOW_ORIGINS: ""  # comma-separated origins or "*"
+
+# Secrets backend: none | aws | azure | gcp | oci
+SECRETS_BACKEND: none
+SECRETS_PREFIX: ""
+
+# Observability
+ENABLE_METRICS: true
+OTEL_EXPORTER_OTLP_ENDPOINT: ""
+OTEL_SERVICE_NAME: speech-bridge
+
 # Server
 HOST: 0.0.0.0
 PORT: 8000

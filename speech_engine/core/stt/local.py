@@ -15,7 +15,8 @@
 import asyncio
 import logging
 import threading
-from typing import Any, AsyncGenerator, Optional
+from collections.abc import AsyncGenerator
+from typing import Any
 
 from speech_engine.config import Settings, get_settings
 from speech_engine.core.audio import (
@@ -50,7 +51,7 @@ class LocalSTTEngine(BaseSTTEngine):
     name = "local"
 
     # Process-wide model singleton (models are large; never load twice).
-    _model: Optional[Any] = None
+    _model: Any | None = None
     _model_lock = threading.Lock()
 
     def __init__(self) -> None:
@@ -117,7 +118,7 @@ class LocalSTTEngine(BaseSTTEngine):
     # Batch
     # ------------------------------------------------------------------ #
     async def transcribe(
-        self, audio_file_path: str, language: Optional[str] = None
+        self, audio_file_path: str, language: str | None = None
     ) -> str:
         lang = normalize_language(language)
         try:
@@ -129,7 +130,7 @@ class LocalSTTEngine(BaseSTTEngine):
         except Exception as exc:
             raise TranscriptionError(f"Local transcription failed: {exc}") from exc
 
-    def _transcribe_source(self, source: Any, lang: Optional[str]) -> str:
+    def _transcribe_source(self, source: Any, lang: str | None) -> str:
         """Blocking transcription of a file path or a float32 waveform."""
         model = self._get_model()
         segments, _info = model.transcribe(
@@ -141,14 +142,14 @@ class LocalSTTEngine(BaseSTTEngine):
         )
         return " ".join(segment.text.strip() for segment in segments).strip()
 
-    def _transcribe_pcm(self, pcm: bytes, lang: Optional[str]) -> str:
+    def _transcribe_pcm(self, pcm: bytes, lang: str | None) -> str:
         return self._transcribe_source(pcm16_to_float32(pcm), lang)
 
     # ------------------------------------------------------------------ #
     # Live streaming (rolling buffer + VAD-filtered incremental decode)
     # ------------------------------------------------------------------ #
     async def transcribe_stream(
-        self, websocket: Any, language: Optional[str] = None
+        self, websocket: Any, language: str | None = None
     ) -> AsyncGenerator[STTStreamResult, None]:
         lang = normalize_language(language)
         settings = self._settings

@@ -15,9 +15,9 @@ SDK imports are lazy so only the enabled provider's package is needed.
 import asyncio
 import logging
 import os
-from typing import Any, Optional
+from typing import Any
 
-from speech_engine.config import Settings, get_settings
+from speech_engine.config import get_settings
 from speech_engine.core.constants import (
     AZURE_TTS_VOICES,
     POLLY_VOICES,
@@ -53,17 +53,13 @@ class AzureTTSEngine(BaseTTSEngine):
             )
         self._settings = settings
 
-    async def synthesize(
-        self, text: str, language: str, output_file_path: str
-    ) -> str:
+    async def synthesize(self, text: str, language: str, output_file_path: str) -> str:
         lang = require_language(language)
         return await asyncio.to_thread(
             self._synthesize_blocking, text, lang, output_file_path
         )
 
-    def _synthesize_blocking(
-        self, text: str, lang: str, output_file_path: str
-    ) -> str:
+    def _synthesize_blocking(self, text: str, lang: str, output_file_path: str) -> str:
         try:
             import azure.cognitiveservices.speech as speechsdk
         except ImportError as exc:
@@ -82,9 +78,7 @@ class AzureTTSEngine(BaseTTSEngine):
         )
         synthesizer = speechsdk.SpeechSynthesizer(
             speech_config=speech_config,
-            audio_config=speechsdk.audio.AudioOutputConfig(
-                filename=output_file_path
-            ),
+            audio_config=speechsdk.audio.AudioOutputConfig(filename=output_file_path),
         )
         result = synthesizer.speak_text_async(text).get()
 
@@ -117,7 +111,7 @@ class OpenAITTSEngine(BaseTTSEngine):
                 "TTS_ENGINE=openai requires OPENAI_API_KEY to be configured."
             )
         self._settings = settings
-        self._client: Optional[Any] = None
+        self._client: Any | None = None
 
     def _get_client(self) -> Any:
         if self._client is None:
@@ -130,9 +124,7 @@ class OpenAITTSEngine(BaseTTSEngine):
             self._client = AsyncOpenAI(api_key=self._settings.OPENAI_API_KEY)
         return self._client
 
-    async def synthesize(
-        self, text: str, language: str, output_file_path: str
-    ) -> str:
+    async def synthesize(self, text: str, language: str, output_file_path: str) -> str:
         require_language(language)  # validate even though voices are multilingual
         client = self._get_client()
         try:
@@ -172,9 +164,7 @@ class AWSTTSEngine(BaseTTSEngine):
             )
         os.environ.setdefault("AWS_DEFAULT_REGION", settings.AWS_REGION)
 
-    async def synthesize(
-        self, text: str, language: str, output_file_path: str
-    ) -> str:
+    async def synthesize(self, text: str, language: str, output_file_path: str) -> str:
         lang = require_language(language)
         voice = POLLY_VOICES.get(lang)
         if voice is None:

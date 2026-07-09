@@ -1,0 +1,35 @@
+[project]
+name = "speech-bridge"
+version = "1.0.0"
+description = "Modular STT/TTS backend with local and remote AI engines (EN/HE/AR)."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+extend-exclude = ["infra"]
+
+[tool.ruff.lint]
+# pycodestyle, pyflakes, isort, pyupgrade, bugbear, comprehensions.
+select = ["E", "F", "I", "UP", "B", "C4"]
+ignore = [
+  "E501", # line length is enforced by the formatter, not the linter
+  "B008", # FastAPI uses function calls (Depends/File/Query) in defaults
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B011"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true       # optional cloud SDKs are lazily imported
+warn_unused_ignores = false
+disallow_untyped_defs = false
+exclude = ["infra/", "examples/"]

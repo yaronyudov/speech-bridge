@@ -11,11 +11,12 @@ from pydantic import BaseModel, Field
 from speech_engine.config import get_settings
 from speech_engine.core.constants import require_language
 from speech_engine.core.exceptions import SpeechEngineError
+from speech_engine.core.security import security_dependencies
 from speech_engine.core.tts.factory import get_tts_engine
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["Text-to-Speech"])
+router = APIRouter(tags=["Text-to-Speech"], dependencies=security_dependencies())
 
 
 class SynthesisRequest(BaseModel):
@@ -65,9 +66,7 @@ async def synthesize_speech(payload: SynthesisRequest) -> FileResponse:
         engine.name,
     )
     try:
-        result_path = await engine.synthesize(
-            payload.text, lang, str(output_path)
-        )
+        result_path = await engine.synthesize(payload.text, lang, str(output_path))
     except SpeechEngineError:
         _delete_file(str(output_path))
         raise
