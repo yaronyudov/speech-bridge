@@ -4,7 +4,7 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = ">= 3.100"
+      version = ">= 4.0"
     }
   }
 
@@ -17,6 +17,8 @@ terraform {
   # }
 }
 
+# azurerm v4 requires a subscription: set ARM_SUBSCRIPTION_ID in the
+# environment (or add subscription_id here) before plan/apply.
 provider "azurerm" {
   features {}
 }

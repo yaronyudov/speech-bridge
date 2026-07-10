@@ -15,9 +15,8 @@ Both features are optional and add no latency when disabled.
 
 import hmac
 import logging
-from collections.abc import Callable
 
-from fastapi import Depends, Request, WebSocket
+from fastapi import Depends, Request, WebSocket, params
 from fastapi.security import APIKeyHeader
 
 from speech_engine.config import Settings, get_settings
@@ -136,6 +135,6 @@ def reset_rate_limiter() -> None:
     _rate_limit_ready = False
 
 
-def security_dependencies() -> list[Callable]:
+def security_dependencies() -> list[params.Depends]:
     """Dependencies applied to every protected REST route."""
     return [Depends(require_api_key), Depends(rate_limit)]
