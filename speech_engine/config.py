@@ -14,10 +14,12 @@ Every setting can therefore be supplied either as an environment variable
 import tempfile
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal, Tuple, Type
+from typing import Annotated, Literal
 
+from pydantic import Field, field_validator
 from pydantic_settings import (
     BaseSettings,
+    NoDecode,
     PydanticBaseSettingsSource,
     SettingsConfigDict,
     YamlConfigSettingsSource,
@@ -106,6 +108,53 @@ class Settings(BaseSettings):
     AWS_POLLY_ENGINE: Literal["neural", "standard"] = "neural"
 
     # ------------------------------------------------------------------ #
+    # Security: API authentication & rate limiting
+    # ------------------------------------------------------------------ #
+    # When true, every /api/v1 route (and the live-transcribe handshake)
+    # requires a valid key in the `X-API-Key` header. Default false so
+    # local development stays frictionless; enable in production.
+    ENABLE_AUTH: bool = False
+    # Accepted API keys. Provide as a comma-separated string or JSON list
+    # in the environment, e.g. API_KEYS="key1,key2".
+    API_KEYS: Annotated[list[str], NoDecode] = Field(default_factory=list)
+    API_KEY_HEADER: str = "X-API-Key"
+
+    # Rate limiting (slowapi). Empty string disables it. Format: the
+    # standard "<n>/<period>" spec, e.g. "60/minute", "1000/hour".
+    ENABLE_RATE_LIMIT: bool = True
+    RATE_LIMIT: str = "60/minute"
+
+    # Request caps (also act as cost guards for the paid remote APIs).
+    MAX_UPLOAD_BYTES: int = 25 * 1024 * 1024  # 25 MiB per /transcribe upload
+    MAX_TEXT_CHARS: int = 5000  # per /synthesize request
+    MAX_WS_SESSION_SECONDS: float = 300.0  # live-transcribe hard time cap
+    MAX_WS_BYTES: int = 100 * 1024 * 1024  # live-transcribe total audio cap
+
+    # CORS: comma-separated origins, or "*" for any. Empty disables CORS.
+    CORS_ALLOW_ORIGINS: Annotated[list[str], NoDecode] = Field(default_factory=list)
+
+    # ------------------------------------------------------------------ #
+    # Secrets backend — resolve credentials from a cloud secret manager
+    # at startup instead of plaintext env vars.
+    # ------------------------------------------------------------------ #
+    SECRETS_BACKEND: Literal["none", "aws", "azure", "gcp", "oci"] = "none"
+    # Prefix/vault locator interpreted per-backend (see core/secrets.py):
+    #   aws    -> Secrets Manager name prefix (e.g. "speech-bridge/")
+    #   gcp    -> "projects/<id>" (Secret Manager); latest version used
+    #   azure  -> Key Vault URI (e.g. "https://<vault>.vault.azure.net/")
+    #   oci    -> OCI Vault OCID
+    SECRETS_PREFIX: str = ""
+
+    # ------------------------------------------------------------------ #
+    # Observability
+    # ------------------------------------------------------------------ #
+    ENABLE_METRICS: bool = True  # Prometheus /metrics endpoint
+    # Set to an OTLP endpoint (e.g. "http://otel-collector:4318") to turn
+    # on OpenTelemetry tracing; empty disables it.
+    OTEL_EXPORTER_OTLP_ENDPOINT: str = ""
+    OTEL_SERVICE_NAME: str = "speech-bridge"
+
+    # ------------------------------------------------------------------ #
     # Server
     # ------------------------------------------------------------------ #
     HOST: str = "0.0.0.0"
@@ -114,15 +163,29 @@ class Settings(BaseSettings):
     # Empty string -> <system temp dir>/speech_engine
     TEMP_DIR: str = ""
 
+    @field_validator("API_KEYS", "CORS_ALLOW_ORIGINS", mode="before")
+    @classmethod
+    def _split_csv(cls, value: object) -> object:
+        """Allow comma-separated strings for list-typed settings so they
+        can be supplied via a single environment variable."""
+        if isinstance(value, str):
+            stripped = value.strip()
+            if not stripped:
+                return []
+            if stripped.startswith("["):
+                return value  # let pydantic parse JSON list form
+            return [item.strip() for item in stripped.split(",") if item.strip()]
+        return value
+
     @classmethod
     def settings_customise_sources(
         cls,
-        settings_cls: Type[BaseSettings],
+        settings_cls: type[BaseSettings],
         init_settings: PydanticBaseSettingsSource,
         env_settings: PydanticBaseSettingsSource,
         dotenv_settings: PydanticBaseSettingsSource,
         file_secret_settings: PydanticBaseSettingsSource,
-    ) -> Tuple[PydanticBaseSettingsSource, ...]:
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
         # env vars > .env > config.yaml > defaults
         return (
             init_settings,

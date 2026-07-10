@@ -7,7 +7,6 @@ per process; every request and WebSocket session shares the instance
 """
 
 import threading
-from typing import Dict, Optional, Type
 
 from speech_engine.config import get_settings
 from speech_engine.core.exceptions import ConfigurationError
@@ -19,14 +18,14 @@ from speech_engine.core.stt.remote import (
     OpenAISTTEngine,
 )
 
-_ENGINE_REGISTRY: Dict[str, Type[BaseSTTEngine]] = {
+_ENGINE_REGISTRY: dict[str, type[BaseSTTEngine]] = {
     "local": LocalSTTEngine,
     "azure": AzureSTTEngine,
     "openai": OpenAISTTEngine,
     "aws": AWSSTTEngine,
 }
 
-_instance: Optional[BaseSTTEngine] = None
+_instance: BaseSTTEngine | None = None
 _lock = threading.Lock()
 
 

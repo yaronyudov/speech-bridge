@@ -3,8 +3,9 @@ WebSocket message plumbing used by every streaming implementation."""
 
 import json
 from abc import ABC, abstractmethod
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass
-from typing import Any, AsyncGenerator, Optional, Tuple
+from typing import Any
 
 from starlette.websockets import WebSocketDisconnect
 
@@ -40,7 +41,7 @@ class BaseSTTEngine(ABC):
 
     @abstractmethod
     async def transcribe(
-        self, audio_file_path: str, language: Optional[str] = None
+        self, audio_file_path: str, language: str | None = None
     ) -> str:
         """Transcribe a complete audio file and return the full text.
 
@@ -53,7 +54,7 @@ class BaseSTTEngine(ABC):
 
     @abstractmethod
     async def transcribe_stream(
-        self, websocket: Any, language: Optional[str] = None
+        self, websocket: Any, language: str | None = None
     ) -> AsyncGenerator[STTStreamResult, None]:
         """Consume binary PCM chunks (16 kHz / 16-bit / mono) from an open
         WebSocket and yield intermediate (*partial*) and committed (*final*)
@@ -66,23 +67,25 @@ class BaseSTTEngine(ABC):
         yield STTStreamResult(RESULT_FINAL, "")  # pragma: no cover
 
 
-async def receive_stream_message(websocket: Any) -> Tuple[str, Optional[bytes]]:
+async def receive_stream_message(websocket: Any) -> tuple[str, bytes]:
     """Read one frame from a Starlette WebSocket and classify it.
 
     Returns ``(kind, payload)`` where kind is one of the ``MSG_*``
-    constants. Binary frames are audio; text frames are treated as JSON
-    control messages (``{"event": "stop"}`` / ``{"event": "flush"}``) or
-    the bare strings ``"stop"`` / ``"flush"``. Transport errors and
-    disconnect frames are normalized to ``MSG_DISCONNECT`` so engine
-    loops can clean up without special-casing exceptions.
+    constants and payload is the audio bytes for ``MSG_AUDIO`` (empty
+    ``b""`` for every other kind). Binary frames are audio; text frames
+    are treated as JSON control messages (``{"event": "stop"}`` /
+    ``{"event": "flush"}``) or the bare strings ``"stop"`` / ``"flush"``.
+    Transport errors and disconnect frames are normalized to
+    ``MSG_DISCONNECT`` so engine loops can clean up without
+    special-casing exceptions.
     """
     try:
         message = await websocket.receive()
     except (WebSocketDisconnect, RuntimeError):
-        return MSG_DISCONNECT, None
+        return MSG_DISCONNECT, b""
 
     if message.get("type") == "websocket.disconnect":
-        return MSG_DISCONNECT, None
+        return MSG_DISCONNECT, b""
 
     data = message.get("bytes")
     if data:
@@ -98,8 +101,8 @@ async def receive_stream_message(websocket: Any) -> Tuple[str, Optional[bytes]]:
         except ValueError:
             pass
         if event in {"stop", "eof", "end", "close"}:
-            return MSG_STOP, None
+            return MSG_STOP, b""
         if event == "flush":
-            return MSG_FLUSH, None
+            return MSG_FLUSH, b""
 
-    return MSG_NOOP, None
+    return MSG_NOOP, b""

@@ -13,9 +13,7 @@ class BaseTTSEngine(ABC):
     media_type: str = "audio/mpeg"
 
     @abstractmethod
-    async def synthesize(
-        self, text: str, language: str, output_file_path: str
-    ) -> str:
+    async def synthesize(self, text: str, language: str, output_file_path: str) -> str:
         """Synthesize ``text`` in ``language`` into ``output_file_path``.
 
         Args:

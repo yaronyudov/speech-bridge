@@ -26,6 +26,27 @@ class UnsupportedLanguageError(SpeechEngineError):
     ws_close_code = 4400  # application-defined: bad request
 
 
+class AuthError(SpeechEngineError):
+    """Missing or invalid API credentials."""
+
+    status_code = 401
+    ws_close_code = 4401  # application-defined: unauthorized
+
+
+class RateLimitError(SpeechEngineError):
+    """Client exceeded the configured request rate limit."""
+
+    status_code = 429
+    ws_close_code = 4429  # application-defined: too many requests
+
+
+class RequestTooLargeError(SpeechEngineError):
+    """Upload / streamed payload exceeded a configured size or time cap."""
+
+    status_code = 413
+    ws_close_code = 4413  # application-defined: payload too large
+
+
 class AudioProcessingError(SpeechEngineError):
     """Uploaded/streamed audio could not be decoded or converted."""
 

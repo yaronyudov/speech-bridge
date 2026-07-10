@@ -42,7 +42,9 @@ async def receive_results(ws) -> None:
         pass
 
 
-async def stream_file(url: str, audio_path: str, language: str) -> None:
+async def stream_file(
+    url: str, audio_path: str, language: str, api_key: str | None
+) -> None:
     with wave.open(audio_path, "rb") as wav_file:
         if (
             wav_file.getframerate() != 16000
@@ -55,7 +57,10 @@ async def stream_file(url: str, audio_path: str, language: str) -> None:
             )
         frames_per_chunk = wav_file.getframerate() * CHUNK_MS // 1000
 
-        async with websockets.connect(f"{url}?language={language}") as ws:
+        connect_url = f"{url}?language={language}"
+        if api_key:
+            connect_url += f"&api_key={api_key}"
+        async with websockets.connect(connect_url) as ws:
             receiver = asyncio.create_task(receive_results(ws))
             while chunk := wav_file.readframes(frames_per_chunk):
                 await ws.send(chunk)
@@ -71,8 +76,11 @@ def main() -> None:
     parser.add_argument(
         "--url", default="ws://localhost:8000/api/v1/live-transcribe"
     )
+    parser.add_argument(
+        "--api-key", default=None, help="API key when the server has ENABLE_AUTH=true"
+    )
     args = parser.parse_args()
-    asyncio.run(stream_file(args.url, args.audio, args.language))
+    asyncio.run(stream_file(args.url, args.audio, args.language, args.api_key))
 
 
 if __name__ == "__main__":

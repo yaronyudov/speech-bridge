@@ -11,7 +11,6 @@ import io
 import os
 import tempfile
 import wave
-from typing import Tuple
 
 import numpy as np
 
@@ -61,9 +60,7 @@ def wrap_pcm16_as_wav(
     return buffer.getvalue()
 
 
-def load_audio_as_pcm16(
-    path: str, target_rate: int = STREAM_SAMPLE_RATE
-) -> bytes:
+def load_audio_as_pcm16(path: str, target_rate: int = STREAM_SAMPLE_RATE) -> bytes:
     """Decode any audio file into 16-bit mono PCM at ``target_rate``.
 
     Tries soundfile first (wav/flac/ogg, no external binaries), then
@@ -110,7 +107,7 @@ def _load_with_pydub(path: str, target_rate: int) -> bytes:
 
 def ensure_wav_pcm16(
     path: str, target_rate: int = STREAM_SAMPLE_RATE
-) -> Tuple[str, bool]:
+) -> tuple[str, bool]:
     """Guarantee a 16-bit mono PCM WAV file at ``target_rate``.
 
     Returns ``(wav_path, is_temporary)``. When the input already matches,

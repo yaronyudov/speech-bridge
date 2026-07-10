@@ -5,7 +5,6 @@
 """
 
 import threading
-from typing import Optional
 
 from speech_engine.config import get_settings
 from speech_engine.core.exceptions import ConfigurationError
@@ -17,16 +16,14 @@ from speech_engine.core.tts.remote import (
     OpenAITTSEngine,
 )
 
-_instance: Optional[BaseTTSEngine] = None
+_instance: BaseTTSEngine | None = None
 _lock = threading.Lock()
 
 
 def _create_engine() -> BaseTTSEngine:
     settings = get_settings()
     if not settings.ENABLE_TTS:
-        raise ConfigurationError(
-            "The TTS subsystem is disabled (ENABLE_TTS=false)."
-        )
+        raise ConfigurationError("The TTS subsystem is disabled (ENABLE_TTS=false).")
     if settings.TTS_ENGINE == "local":
         if settings.TTS_LOCAL_BACKEND == "coqui":
             return CoquiTTSEngine()

@@ -31,9 +31,10 @@ import io
 import logging
 import os
 import threading
-from typing import Any, AsyncGenerator, Optional, Tuple
+from collections.abc import AsyncGenerator
+from typing import Any
 
-from speech_engine.config import Settings, get_settings
+from speech_engine.config import get_settings
 from speech_engine.core.audio import (
     STREAM_BYTES_PER_SECOND,
     STREAM_SAMPLE_RATE,
@@ -107,12 +108,10 @@ class AzureSTTEngine(BaseSTTEngine):
 
     # ---------------------------- batch ------------------------------- #
     async def transcribe(
-        self, audio_file_path: str, language: Optional[str] = None
+        self, audio_file_path: str, language: str | None = None
     ) -> str:
         lang = normalize_language(language) or DEFAULT_LANGUAGE
-        return await asyncio.to_thread(
-            self._transcribe_blocking, audio_file_path, lang
-        )
+        return await asyncio.to_thread(self._transcribe_blocking, audio_file_path, lang)
 
     def _transcribe_blocking(self, audio_file_path: str, lang: str) -> str:
         speechsdk = self._sdk()
@@ -163,22 +162,20 @@ class AzureSTTEngine(BaseSTTEngine):
 
     # --------------------------- streaming ----------------------------- #
     async def transcribe_stream(
-        self, websocket: Any, language: Optional[str] = None
+        self, websocket: Any, language: str | None = None
     ) -> AsyncGenerator[STTStreamResult, None]:
         speechsdk = self._sdk()
         lang = normalize_language(language) or DEFAULT_LANGUAGE
         loop = asyncio.get_running_loop()
         events: asyncio.Queue = asyncio.Queue()
 
-        def emit(kind: str, payload: Optional[str]) -> None:
+        def emit(kind: str, payload: str | None) -> None:
             loop.call_soon_threadsafe(events.put_nowait, (kind, payload))
 
         stream_format = speechsdk.audio.AudioStreamFormat(
             samples_per_second=STREAM_SAMPLE_RATE, bits_per_sample=16, channels=1
         )
-        push_stream = speechsdk.audio.PushAudioInputStream(
-            stream_format=stream_format
-        )
+        push_stream = speechsdk.audio.PushAudioInputStream(stream_format=stream_format)
         recognizer = speechsdk.SpeechRecognizer(
             speech_config=self._speech_config(speechsdk, lang),
             audio_config=speechsdk.audio.AudioConfig(stream=push_stream),
@@ -216,6 +213,10 @@ class AzureSTTEngine(BaseSTTEngine):
                         push_stream.write(bytes(data))
                     elif kind in (MSG_STOP, MSG_DISCONNECT):
                         break
+            except SpeechEngineError as exc:
+                # e.g. a session time/size cap raised by the capped socket —
+                # surface it to the consumer instead of dying silently.
+                loop.call_soon_threadsafe(events.put_nowait, ("app_error", exc))
             finally:
                 # Closing the push stream flushes Azure's final results and
                 # ends the session (-> "done" via session_stopped/canceled).
@@ -230,6 +231,8 @@ class AzureSTTEngine(BaseSTTEngine):
                 kind, payload = await events.get()
                 if kind == "done":
                     break
+                if kind == "app_error":
+                    raise payload
                 if kind == "error":
                     raise RemoteServiceError(
                         f"Azure speech recognition failed: {payload}"
@@ -262,7 +265,7 @@ class OpenAISTTEngine(BaseSTTEngine):
                 "STT_ENGINE=openai requires OPENAI_API_KEY to be configured."
             )
         self._settings = settings
-        self._client: Optional[Any] = None
+        self._client: Any | None = None
 
     def _get_client(self) -> Any:
         if self._client is None:
@@ -275,9 +278,7 @@ class OpenAISTTEngine(BaseSTTEngine):
             self._client = AsyncOpenAI(api_key=self._settings.OPENAI_API_KEY)
         return self._client
 
-    async def _request_transcription(
-        self, file_payload: Any, lang: Optional[str]
-    ) -> str:
+    async def _request_transcription(self, file_payload: Any, lang: str | None) -> str:
         client = self._get_client()
         kwargs = {"model": self._settings.OPENAI_STT_MODEL, "file": file_payload}
         if lang:
@@ -293,7 +294,7 @@ class OpenAISTTEngine(BaseSTTEngine):
 
     # ---------------------------- batch ------------------------------- #
     async def transcribe(
-        self, audio_file_path: str, language: Optional[str] = None
+        self, audio_file_path: str, language: str | None = None
     ) -> str:
         lang = normalize_language(language)
         with open(audio_file_path, "rb") as audio_file:
@@ -301,7 +302,7 @@ class OpenAISTTEngine(BaseSTTEngine):
 
     # --------------------------- streaming ----------------------------- #
     async def transcribe_stream(
-        self, websocket: Any, language: Optional[str] = None
+        self, websocket: Any, language: str | None = None
     ) -> AsyncGenerator[STTStreamResult, None]:
         lang = normalize_language(language)
         settings = self._settings
@@ -409,7 +410,7 @@ class AWSSTTEngine(BaseSTTEngine):
 
     # ---------------------------- batch ------------------------------- #
     async def transcribe(
-        self, audio_file_path: str, language: Optional[str] = None
+        self, audio_file_path: str, language: str | None = None
     ) -> str:
         lang = normalize_language(language) or DEFAULT_LANGUAGE
         pcm = await asyncio.to_thread(load_audio_as_pcm16, audio_file_path)
@@ -443,7 +444,7 @@ class AWSSTTEngine(BaseSTTEngine):
 
     # --------------------------- streaming ----------------------------- #
     async def transcribe_stream(
-        self, websocket: Any, language: Optional[str] = None
+        self, websocket: Any, language: str | None = None
     ) -> AsyncGenerator[STTStreamResult, None]:
         lang = normalize_language(language) or DEFAULT_LANGUAGE
         stream = await self._start_stream(lang)
@@ -460,6 +461,10 @@ class AWSSTTEngine(BaseSTTEngine):
                         )
                     elif kind in (MSG_STOP, MSG_DISCONNECT):
                         break
+            except SpeechEngineError as exc:
+                # e.g. a session time/size cap raised by the capped socket —
+                # surface it to the consumer instead of dying silently.
+                await events.put(("app_error", exc))
             finally:
                 try:
                     await stream.input_stream.end_stream()
@@ -494,6 +499,8 @@ class AWSSTTEngine(BaseSTTEngine):
                 kind, payload = await events.get()
                 if kind == "done":
                     break
+                if kind == "app_error":
+                    raise payload
                 if kind == "error":
                     raise RemoteServiceError(
                         f"Amazon Transcribe streaming failed: {payload}"

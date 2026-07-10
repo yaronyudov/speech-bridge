@@ -6,6 +6,8 @@ A highly modular, configuration-driven FastAPI service for hybrid **Speech-to-Te
 - **Strategy + Factory architecture** — engines are interchangeable strategies behind `BaseSTTEngine` / `BaseTTSEngine`; factories pick the implementation from config at startup.
 - **Live low-latency STT** — WebSocket streaming with partial/final results for local (faster-whisper rolling-buffer + VAD) and remote (Azure push streams, Amazon Transcribe Streaming) setups.
 
+> **New here? Start with the step-by-step guide: [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)** — zero to a working service, locally or on AWS/Azure/GCP/OCI.
+
 ---
 
 ## Contents
@@ -22,6 +24,9 @@ A highly modular, configuration-driven FastAPI service for hybrid **Speech-to-Te
   - [`POST /api/v1/synthesize`](#post-apiv1synthesize--tts)
 - [Example clients](#example-clients)
 - [Partial modes](#partial-modes)
+- [Security](#security)
+- [Observability](#observability)
+- [Deployment (Terraform)](#deployment-terraform)
 - [Docker](#docker)
 - [Extending: adding a new engine](#extending-adding-a-new-engine)
 - [Error handling](#error-handling)
@@ -139,6 +144,18 @@ Settings resolve with priority: **process env vars → `.env` → `config.yaml` 
 | `OPENAI_TTS_MODEL` / `OPENAI_TTS_VOICE` | `tts-1` / `alloy` | OpenAI TTS model & voice |
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_REGION` | — / — / `us-east-1` | AWS credentials (any boto3 credential-chain source also works) |
 | `AWS_POLLY_ENGINE` | `neural` | `neural` \| `standard` |
+| `ENABLE_AUTH` | `false` | Require an `X-API-Key` header on all `/api/v1` routes + live WS |
+| `API_KEYS` | — | Comma-separated accepted keys (e.g. `k1,k2`) |
+| `API_KEY_HEADER` | `X-API-Key` | Header carrying the API key |
+| `ENABLE_RATE_LIMIT` / `RATE_LIMIT` | `true` / `60/minute` | Shared REST+WS rate limit |
+| `MAX_UPLOAD_BYTES` | `26214400` | Max `/transcribe` upload (413 over cap) |
+| `MAX_TEXT_CHARS` | `5000` | Max `/synthesize` text length |
+| `MAX_WS_SESSION_SECONDS` / `MAX_WS_BYTES` | `300` / `104857600` | Live-session time & audio caps |
+| `CORS_ALLOW_ORIGINS` | — | Comma-separated origins or `*` (empty disables CORS) |
+| `SECRETS_BACKEND` | `none` | `none` \| `aws` \| `azure` \| `gcp` \| `oci` |
+| `SECRETS_PREFIX` | — | Secret-store locator (see [Secrets](#secrets-from-a-cloud-manager)) |
+| `ENABLE_METRICS` | `true` | Expose Prometheus `/metrics` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | — | OTLP endpoint to enable tracing (empty = off) |
 | `HOST` / `PORT` | `0.0.0.0` / `8000` | Bind address |
 | `LOG_LEVEL` | `INFO` | Python logging level |
 | `TEMP_DIR` | system temp | Working dir for uploads & synthesized files |
@@ -284,6 +301,75 @@ python examples/live_client.py meeting_16k.wav --language he
 
 The `/health` endpoint always reports which subsystems are live.
 
+## Security
+
+All optional and off/relaxed by default for local dev; enable for production
+(see [`SECURITY.md`](SECURITY.md)).
+
+- **Authentication** — set `ENABLE_AUTH=true` + `API_KEYS=k1,k2`. Clients send
+  `X-API-Key: k1` on REST calls and on the live WS handshake (or `?api_key=k1`).
+  Missing/invalid → `401` (WS close `4401`). Keys are compared in constant time.
+- **Rate limiting** — `RATE_LIMIT` (e.g. `60/minute`) is enforced across REST
+  and WebSocket, keyed by API key (or client IP). Over-limit → `429` (WS `4429`).
+- **Request caps** — `MAX_UPLOAD_BYTES` (413), `MAX_TEXT_CHARS`, and
+  `MAX_WS_SESSION_SECONDS` / `MAX_WS_BYTES` (WS `4413`) bound each request/session
+  and cap the cost of the paid remote APIs.
+- **CORS** — `CORS_ALLOW_ORIGINS` (disabled by default).
+
+### Secrets from a cloud manager
+
+Instead of plaintext env credentials, set `SECRETS_BACKEND` to `aws`/`azure`/
+`gcp`/`oci` and `SECRETS_PREFIX` to the store locator; matching secrets
+(`OPENAI_API_KEY`, `AZURE_SPEECH_KEY`, `API_KEYS`, …) are fetched at startup.
+
+| Backend | `SECRETS_PREFIX` | Requires |
+|---|---|---|
+| `aws` | secret name prefix, e.g. `speech-bridge/` | `boto3` |
+| `gcp` | `projects/<project-id>` | `google-cloud-secret-manager` |
+| `azure` | Key Vault URL | `azure-keyvault-secrets` + `azure-identity` |
+| `oci` | Vault OCID | `oci` |
+
+## Observability
+
+- **`/metrics`** — Prometheus metrics (request counts, latency histograms) when
+  `ENABLE_METRICS=true`.
+- **`/health`** (liveness, always 200) and **`/ready`** (readiness, 503 until the
+  model has warmed up) — wire them to your load balancer's probes.
+- **Tracing** — set `OTEL_EXPORTER_OTLP_ENDPOINT` to enable OpenTelemetry
+  FastAPI instrumentation.
+
+## Deployment (Terraform)
+
+Production infrastructure for **AWS, Azure, GCP, and Oracle Cloud** lives in
+[`infra/terraform/`](infra/terraform/) — one self-contained, fully optional
+module per cloud (serverless containers or VM, create-or-BYO network/registry/
+secrets).
+
+```bash
+cd infra/terraform/modules/gcp
+cp ../../envs/gcp.example.tfvars gcp.tfvars   # edit
+terraform init && terraform apply -var-file=gcp.tfvars
+```
+
+### Cost controls — budget must not be exceeded
+
+Spend is bounded by three layers (details in the [IaC README](infra/terraform/README.md)):
+
+1. **Architectural caps (always on)** — `max_instances`/replicas + concurrency
+   bound the burn rate no matter what.
+2. **Regular budget → alerts** — `monthly_budget` emails at 50/80/100%.
+3. **Grace budget → kill switch** — `hard_cap_amount` (defaults to the regular
+   budget) triggers real enforcement: AWS Budget Actions (SSM stop / deny
+   policy), GCP Pub/Sub → scale-to-zero or disable-billing, Azure/OCI automation.
+
+```
+spend ─► 50% ── 80% ── 100% (monthly_budget) ····· hard_cap_amount
+         └──── email alerts ────┘                   └── KILL SWITCH ──┘
+```
+
+See [`docs/PRODUCTION.md`](docs/PRODUCTION.md) for the full production checklist
+and roadmap.
+
 ## Docker
 
 ```bash
@@ -313,6 +399,9 @@ Domain errors derive from `SpeechEngineError` (`core/exceptions.py`), each carry
 |---|---|---|---|
 | `UnsupportedLanguageError` | 400 | 4400 | Language outside {en, he, ar} or unsupported by the engine |
 | `AudioProcessingError` | 400 | 4400 | Audio could not be decoded/converted |
+| `AuthError` | 401 | 4401 | Missing or invalid API key (when `ENABLE_AUTH=true`) |
+| `RequestTooLargeError` | 413 | 4413 | Upload / text / WS session exceeded a configured cap |
+| `RateLimitError` | 429 | 4429 | Client exceeded `RATE_LIMIT` |
 | `ConfigurationError` | 500 | 1011 | Missing credentials / package / disabled subsystem |
 | `TranscriptionError` / `SynthesisError` | 500 | 1011 | Engine failure |
 | `RemoteServiceError` | 502 | 1011 | Provider timeout / auth / transport failure |

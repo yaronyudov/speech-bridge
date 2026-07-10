@@ -14,7 +14,7 @@ import asyncio
 import logging
 import os
 import threading
-from typing import Any, Optional
+from typing import Any
 
 from speech_engine.config import Settings, get_settings
 from speech_engine.core.constants import (
@@ -47,9 +47,7 @@ class EdgeTTSEngine(BaseTTSEngine):
     file_extension = "mp3"
     media_type = "audio/mpeg"
 
-    async def synthesize(
-        self, text: str, language: str, output_file_path: str
-    ) -> str:
+    async def synthesize(self, text: str, language: str, output_file_path: str) -> str:
         lang = require_language(language)
         voice = EDGE_TTS_VOICES[lang]
         try:
@@ -79,7 +77,7 @@ class CoquiTTSEngine(BaseTTSEngine):
     media_type = "audio/wav"
 
     # XTTS models are large — share one instance per process.
-    _tts: Optional[Any] = None
+    _tts: Any | None = None
     _lock = threading.Lock()
 
     def __init__(self) -> None:
@@ -113,9 +111,7 @@ class CoquiTTSEngine(BaseTTSEngine):
                     cls._tts = TTS(self._settings.TTS_COQUI_MODEL_NAME).to(device)
         return cls._tts
 
-    async def synthesize(
-        self, text: str, language: str, output_file_path: str
-    ) -> str:
+    async def synthesize(self, text: str, language: str, output_file_path: str) -> str:
         lang = require_language(language)
         coqui_lang = COQUI_XTTS_LANGUAGES.get(lang)
         if coqui_lang is None:
