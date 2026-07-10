@@ -22,3 +22,8 @@ output "killswitch_topic" {
   description = "Pub/Sub topic the grace budget publishes to (deploy the function against it)."
   value       = var.enable_hard_cap ? google_pubsub_topic.killswitch[0].id : null
 }
+
+output "killswitch_mode" {
+  description = "Configured kill-switch behaviour — pass as the MODE argument to scripts/deploy_gcp_killswitch.sh."
+  value       = var.hard_cap_mode
+}
