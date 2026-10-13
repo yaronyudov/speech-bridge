@@ -21,6 +21,22 @@ install: ## Install runtime + dev dependencies
 run: ## Run the API locally with autoreload
 	uvicorn speech_engine.main:app --reload --host 0.0.0.0 --port $${PORT:-8000}
 
+.PHONY: live
+live: ## Run live microphone transcription client
+	./run_live_hebrew.sh
+
+.PHONY: benchmark
+benchmark: ## Run Hebrew models benchmark matrix
+	./scripts/compare_hebrew.sh --model all
+
+.PHONY: record
+record: ## Record voice and benchmark all models
+	./scripts/record_and_test.sh
+
+.PHONY: download
+download: ## Download Whisper model with progress bar (make download MODEL=large-v3)
+	./scripts/download_model.py $(MODEL)
+
 .PHONY: test
 test: ## Run the pytest suite
 	pytest -q

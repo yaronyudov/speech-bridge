@@ -67,6 +67,9 @@ class Settings(BaseSettings):
     # Minimum seconds of *new* audio accumulated before another local
     # inference pass runs on the rolling buffer.
     STT_STREAM_INFER_INTERVAL_SECONDS: float = 1.5
+    # Minimum audio context seconds required before the first inference pass
+    # (prevents broken syllables on fractional words; 0.0 allows instant inference in tests).
+    STT_STREAM_MIN_CONTEXT_SECONDS: float = 0.0
     # A segment is force-finalized once its buffer reaches this length.
     STT_STREAM_MAX_SEGMENT_SECONDS: float = 12.0
     # int16 RMS energy below which audio is treated as silence.
@@ -186,6 +189,11 @@ class Settings(BaseSettings):
         dotenv_settings: PydanticBaseSettingsSource,
         file_secret_settings: PydanticBaseSettingsSource,
     ) -> tuple[PydanticBaseSettingsSource, ...]:
+        import os
+
+        if os.getenv("TESTING") == "1":
+            return (init_settings, env_settings, YamlConfigSettingsSource(settings_cls))
+
         # env vars > .env > config.yaml > defaults
         return (
             init_settings,

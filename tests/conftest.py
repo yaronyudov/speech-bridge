@@ -22,9 +22,16 @@ def _reset_singletons() -> None:
     reset_rate_limiter()
 
 
+@pytest.fixture(autouse=True)
+def isolate_test_env(monkeypatch):
+    """Isolate tests from local .env files and set test defaults."""
+    monkeypatch.setenv("TESTING", "1")
+
+
 @pytest.fixture
 def configure_env(monkeypatch):
     """Return a helper that sets env vars and resets cached singletons."""
+    monkeypatch.setenv("TESTING", "1")
 
     def _apply(**env: str):
         for key, value in env.items():
@@ -47,7 +54,7 @@ def stub_whisper(monkeypatch):
 
     calls: list = []
 
-    def fake_source(self, source, lang):
+    def fake_source(self, source, lang, *args, **kwargs):
         calls.append(lang)
         if isinstance(source, np.ndarray):
             return f"heard {source.shape[0] // 1600} tenths" if source.size else ""

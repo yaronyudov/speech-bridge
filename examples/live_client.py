@@ -73,9 +73,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("audio", help="16 kHz mono 16-bit PCM WAV file")
     parser.add_argument("--language", choices=["en", "he", "ar"], required=True)
-    parser.add_argument(
-        "--url", default="ws://localhost:8000/api/v1/live-transcribe"
-    )
+    parser.add_argument("--url", default="ws://localhost:8000/api/v1/live-transcribe")
     parser.add_argument(
         "--api-key", default=None, help="API key when the server has ENABLE_AUTH=true"
     )

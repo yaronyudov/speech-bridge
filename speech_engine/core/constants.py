@@ -112,3 +112,18 @@ def require_language(language: str | None) -> str:
             "A language is required. Supported languages: en, he, ar."
         )
     return code
+
+
+# --------------------------------------------------------------------------- #
+# Directionality helpers (LTR vs RTL)
+# --------------------------------------------------------------------------- #
+RTL_LANGUAGES: frozenset[str] = frozenset({LANGUAGE_HE, LANGUAGE_AR})
+
+
+def is_rtl_language(language: str | None) -> bool:
+    """Return True if the language is written Right-to-Left (Hebrew, Arabic, etc.)."""
+    if language is None or not str(language).strip():
+        return False
+    code = str(language).strip().lower().replace("_", "-").split("-")[0]
+    code = _LANGUAGE_ALIASES.get(code, code)
+    return code in RTL_LANGUAGES

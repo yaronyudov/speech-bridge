@@ -33,6 +33,8 @@ Languages: **English (`en`), Hebrew (`he`), Arabic (`ar`)**. Engines are
 switchable by config: fully **local** (faster-whisper + edge-tts, no API keys)
 or **remote** (OpenAI / Azure / AWS).
 
+> 🇮🇱 **Specialized Hebrew setup?** See the dedicated **[Hebrew STT & TTS Guide](HEBREW_GUIDE.md)** for optimal Ivrit-AI model selection, low-latency live microphone streaming, and library requirements.
+
 ## 2. Prerequisites
 
 | Tool | Needed for | Check |
