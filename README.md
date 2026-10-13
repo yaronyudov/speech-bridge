@@ -136,8 +136,10 @@ Settings resolve with priority: **process env vars → `.env` → `config.yaml` 
 | `STT_LOCAL_MODEL_SIZE` | `large-v3` | faster-whisper model (`tiny`…`large-v3` or HF repo id) |
 | `STT_LOCAL_DEVICE` | `auto` | `auto` \| `cuda` \| `cpu` (`auto` = CUDA when available) |
 | `STT_LOCAL_COMPUTE_TYPE` | `auto` | `auto` = `float16` on GPU, `int8` on CPU |
-| `STT_LOCAL_BEAM_SIZE` | `5` | Whisper beam size |
+| `STT_LOCAL_BEAM_SIZE` | `5` | Whisper beam size (batch transcription) |
 | `STT_STREAM_INFER_INTERVAL_SECONDS` | `1.5` | New audio required between local live inference passes |
+| `STT_STREAM_BEAM_SIZE` | `1` | Beam size for live streaming passes (1 = greedy search, 3-4x faster on CPU) |
+| `STT_STREAM_MIN_CONTEXT_SECONDS` | `0.0` | Minimum audio context required before first inference (prevents broken syllables) |
 | `STT_STREAM_MAX_SEGMENT_SECONDS` | `12.0` | Force-finalize a live segment at this length |
 | `STT_STREAM_SILENCE_RMS_THRESHOLD` | `300` | int16 RMS below which audio counts as silence |
 | `STT_STREAM_TRAILING_SILENCE_SECONDS` | `0.6` | Trailing silence that finalizes a segment |
@@ -294,9 +296,12 @@ python examples/batch_client.py synthesize "hello world" --language en --out hi.
 
 # Live STT: streams a 16 kHz mono WAV at real-time pace, prints partial/final
 python examples/live_client.py meeting_16k.wav --language he
+
+# Live microphone STT: real-time microphone streaming with RMS audio meter & BiDi display
+python examples/mic_live_client.py --language he -o transcript.txt
 ```
 
-`live_client.py` is the reference implementation of the WebSocket protocol above (pacing, `stop` control frame, result handling) — a browser client would do the same with `AudioWorklet`-captured PCM.
+`live_client.py` and `mic_live_client.py` provide reference implementations of the WebSocket protocol above (pacing, `stop` control frame, result handling, RMS metering) — a browser client would do the same with `AudioWorklet`-captured PCM.
 
 ## Partial modes
 

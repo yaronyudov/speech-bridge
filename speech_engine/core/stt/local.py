@@ -113,16 +113,26 @@ class LocalSTTEngine(BaseSTTEngine):
 
                         model_name = settings.STT_LOCAL_MODEL_SIZE
                         repo_id = _MODELS.get(model_name, model_name)
-                        huggingface_hub.snapshot_download(
-                            repo_id,
-                            allow_patterns=[
-                                "config.json",
-                                "preprocessor_config.json",
-                                "model.bin",
-                                "tokenizer.json",
-                                "vocabulary.*",
-                            ],
-                        )
+                        patterns = [
+                            "config.json",
+                            "preprocessor_config.json",
+                            "model.bin",
+                            "tokenizer.json",
+                            "vocabulary.*",
+                        ]
+                        try:
+                            # Optimization E: Fast-path local cache check without network probe
+                            huggingface_hub.snapshot_download(
+                                repo_id,
+                                allow_patterns=patterns,
+                                local_files_only=True,
+                            )
+                        except Exception:
+                            huggingface_hub.snapshot_download(
+                                repo_id,
+                                allow_patterns=patterns,
+                                local_files_only=False,
+                            )
                     except Exception as err:
                         logger.debug("Pre-download check bypassed: %s", err)
 
@@ -158,7 +168,11 @@ class LocalSTTEngine(BaseSTTEngine):
             raise TranscriptionError(f"Local transcription failed: {exc}") from exc
 
     def _transcribe_source(
-        self, source: Any, lang: str | None, vad_filter: bool = True
+        self,
+        source: Any,
+        lang: str | None,
+        vad_filter: bool = True,
+        beam_size: int | None = None,
     ) -> str:
         """Blocking transcription of a file path or a float32 waveform."""
         model = self._get_model()
@@ -174,10 +188,13 @@ class LocalSTTEngine(BaseSTTEngine):
         elif lang == "ar":
             initial_prompt = "تسجيل محادثة واجتماع باللغة العربية."
 
+        actual_beam = (
+            beam_size if beam_size is not None else self._settings.STT_LOCAL_BEAM_SIZE
+        )
         segments, _info = model.transcribe(
             source,
             language=lang,  # None -> whisper auto-detect
-            beam_size=self._settings.STT_LOCAL_BEAM_SIZE,
+            beam_size=actual_beam,
             temperature=0.0,
             vad_filter=vad_filter,
             vad_parameters=vad_parameters if vad_filter else None,
@@ -209,7 +226,12 @@ class LocalSTTEngine(BaseSTTEngine):
         return " ".join(valid_segments).strip()
 
     def _transcribe_pcm(self, pcm: bytes, lang: str | None) -> str:
-        return self._transcribe_source(pcm16_to_float32(pcm), lang, vad_filter=False)
+        return self._transcribe_source(
+            pcm16_to_float32(pcm),
+            lang,
+            vad_filter=False,
+            beam_size=self._settings.STT_STREAM_BEAM_SIZE,
+        )
 
     # ------------------------------------------------------------------ #
     # Live streaming (rolling buffer + incremental decode)

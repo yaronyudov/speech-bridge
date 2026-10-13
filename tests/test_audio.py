@@ -47,3 +47,10 @@ def test_ensure_wav_passthrough(tmp_path):
     out_path, is_temp = audio.ensure_wav_pcm16(str(path))
     assert out_path == str(path)
     assert is_temp is False
+
+
+def test_pcm16_rms_calculation():
+    # Square wave: alternate between 1000 and -1000 -> RMS is 1000.0
+    samples = np.array([1000, -1000] * 500, dtype=np.int16)
+    rms = audio.pcm16_rms(samples.tobytes())
+    assert abs(rms - 1000.0) < 1e-2
