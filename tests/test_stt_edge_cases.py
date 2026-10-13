@@ -55,6 +55,17 @@ def test_local_stt_transcribe_pcm_empty():
     assert engine._transcribe_pcm(b"", "en") == ""
 
 
+def test_local_stt_transcribe_pcm_beam_size():
+    engine = LocalSTTEngine()
+    with patch.object(engine, "_transcribe_source", return_value="test") as mock_source:
+        engine._transcribe_pcm(b"\x00\x00" * 1600, "en")
+        mock_source.assert_called_once()
+        assert (
+            mock_source.call_args.kwargs.get("beam_size")
+            == engine._settings.STT_STREAM_BEAM_SIZE
+        )
+
+
 @pytest.mark.asyncio
 async def test_local_stt_stream_events():
     engine = LocalSTTEngine()

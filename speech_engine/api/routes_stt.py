@@ -1,5 +1,6 @@
 """Batch Speech-to-Text HTTP endpoints."""
 
+import asyncio
 import logging
 import re
 from pathlib import Path
@@ -62,7 +63,8 @@ async def transcribe_audio(
                     raise RequestTooLargeError(
                         f"Uploaded audio exceeds the maximum size of {max_bytes} bytes."
                     )
-                out.write(chunk)
+                # Optimization D: Offload disk write to thread pool to avoid blocking the asyncio event loop
+                await asyncio.to_thread(out.write, chunk)
         if received == 0:
             raise HTTPException(status_code=400, detail="Uploaded audio file is empty.")
 

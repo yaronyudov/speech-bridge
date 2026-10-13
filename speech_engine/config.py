@@ -67,6 +67,8 @@ class Settings(BaseSettings):
     # Minimum seconds of *new* audio accumulated before another local
     # inference pass runs on the rolling buffer.
     STT_STREAM_INFER_INTERVAL_SECONDS: float = 1.5
+    # Beam size for live streaming inference passes (1 = greedy search, 3-4x faster).
+    STT_STREAM_BEAM_SIZE: int = 1
     # Minimum audio context seconds required before the first inference pass
     # (prevents broken syllables on fractional words; 0.0 allows instant inference in tests).
     STT_STREAM_MIN_CONTEXT_SECONDS: float = 0.0
