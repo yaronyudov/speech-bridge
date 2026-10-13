@@ -6,7 +6,8 @@ A highly modular, configuration-driven FastAPI service for hybrid **Speech-to-Te
 - **Strategy + Factory architecture** — engines are interchangeable strategies behind `BaseSTTEngine` / `BaseTTSEngine`; factories pick the implementation from config at startup.
 - **Live low-latency STT** — WebSocket streaming with partial/final results for local (faster-whisper rolling-buffer + VAD) and remote (Azure push streams, Amazon Transcribe Streaming) setups.
 
-> **New here? Start with the step-by-step guide: [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)** — zero to a working service, locally or on AWS/Azure/GCP/OCI.
+> **New here? Start with the step-by-step guide: [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)** — zero to a working service, locally or on AWS/Azure/GCP/OCI.  
+> 🇮🇱 **Looking for Hebrew STT/TTS? See [docs/HEBREW_GUIDE.md](docs/HEBREW_GUIDE.md)** for optimal Ivrit-AI model selection, live microphone setup, and troubleshooting.
 
 ---
 
@@ -106,12 +107,18 @@ speech_engine/
 
 ```python
 class BaseSTTEngine(ABC):
-    async def transcribe(self, audio_file_path: str, language: str | None = None) -> str: ...
-    async def transcribe_stream(self, websocket, language: str | None = None) \
-        -> AsyncGenerator[STTStreamResult, None]: ...   # yields partial/final increments
+    async def transcribe(
+        self, audio_file_path: str, language: str | None = None
+    ) -> str: ...
+    async def transcribe_stream(
+        self, websocket, language: str | None = None
+    ) -> AsyncGenerator[STTStreamResult, None]: ...  # yields partial/final increments
+
 
 class BaseTTSEngine(ABC):
-    async def synthesize(self, text: str, language: str, output_file_path: str) -> str: ...
+    async def synthesize(
+        self, text: str, language: str, output_file_path: str
+    ) -> str: ...
 ```
 
 **Request flow (live STT):** client WebSocket → `ws_stt.py` (language negotiation, error frames) → `engine.transcribe_stream(websocket)` reads binary PCM frames, feeds the engine-specific pipeline (rolling whisper buffer / Azure `PushAudioInputStream` / Transcribe event stream), and yields `partial`/`final` results, which the route serializes back as JSON.

@@ -27,11 +27,12 @@ class STTStreamResult:
 
     ``type`` is ``"partial"`` (hypothesis may still change) or ``"final"``
     (segment committed). Serialized on the wire as
-    ``{"type": "partial"|"final", "text": "..."}``.
+    ``{"type": "partial"|"final", "text": "...", "latency_ms": 123.4}``.
     """
 
     type: str
     text: str
+    latency_ms: float | None = None
 
 
 class BaseSTTEngine(ABC):

@@ -189,7 +189,10 @@ async def live_transcribe(
     capped = _CappedWebSocket(websocket, settings.MAX_WS_BYTES, deadline)
     try:
         async for result in engine.transcribe_stream(capped, lang):
-            await websocket.send_json({"type": result.type, "text": result.text})
+            payload = {"type": result.type, "text": result.text}
+            if result.latency_ms is not None:
+                payload["latency_ms"] = round(result.latency_ms, 1)
+            await websocket.send_json(payload)
         # Engine finished cleanly (client sent "stop" or disconnected).
         await _safe_close(websocket, 1000)
     except WebSocketDisconnect:
