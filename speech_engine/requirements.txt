@@ -38,7 +38,6 @@ pydub>=0.25.1
 # Pin av<14 to avoid PyAV 14.x breaking removal of metadata_errors parameter
 av<14.0.0
 faster-whisper>=1.0.3
-sounddevice>=0.4.6
 
 # Local TTS — Microsoft Edge neural voices (no API key required)
 edge-tts>=6.1.10

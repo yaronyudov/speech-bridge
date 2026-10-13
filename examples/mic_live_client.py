@@ -31,7 +31,11 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-import sounddevice as sd
+
+try:
+    import sounddevice as sd
+except (ImportError, OSError):
+    sd = None
 import websockets
 
 SAMPLE_RATE = 16_000

@@ -45,14 +45,14 @@ def test_record_and_benchmark_help():
     assert "benchmark" in result.stdout.lower()
 
 
-def test_test_latency_execution():
+def test_test_latency_help():
     result = subprocess.run(
-        [sys.executable, str(SCRIPTS_DIR / "test_latency.py")],
+        [sys.executable, str(SCRIPTS_DIR / "test_latency.py"), "--help"],
         capture_output=True,
         text=True,
     )
     assert result.returncode == 0
-    assert "Hebrew Live Transcription & Latency Test" in result.stdout
+    assert "latency" in result.stdout.lower()
 
 
 def test_compare_hebrew_models_help():

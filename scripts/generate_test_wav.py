@@ -36,7 +36,10 @@ if str(ROOT_DIR) not in sys.path:
 if sys.executable != str(VENV_PY) and VENV_PY.exists():
     os.execv(str(VENV_PY), [str(VENV_PY), __file__] + sys.argv[1:])
 
-import sounddevice as sd
+try:
+    import sounddevice as sd
+except (ImportError, OSError):
+    sd = None
 import soundfile as sf
 
 DEFAULT_MEETING_SCRIPT = (

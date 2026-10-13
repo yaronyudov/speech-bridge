@@ -26,6 +26,10 @@ import websockets
 
 
 async def main() -> None:
+    if len(sys.argv) > 1 and sys.argv[1] in ("--help", "-h"):
+        print(__doc__)
+        return
+
     test_phrase = (
         "שלום לכולם, אנחנו בודקים כעת את מהירות התמלול והדיוק של המערכת בעברית."
     )

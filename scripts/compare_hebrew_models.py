@@ -31,7 +31,11 @@ if sys.executable != str(VENV_PY) and VENV_PY.exists():
     os.execv(str(VENV_PY), [str(VENV_PY), __file__] + sys.argv[1:])
 
 import numpy as np
-import sounddevice as sd
+
+try:
+    import sounddevice as sd
+except (ImportError, OSError):
+    sd = None
 import soundfile as sf
 from faster_whisper import WhisperModel
 
@@ -258,6 +262,10 @@ def run_benchmark_matrix(
 
 
 def record_microphone(seconds: int = 10, sr: int = 16000) -> np.ndarray:
+    if sd is None:
+        raise RuntimeError(
+            "sounddevice or PortAudio library is not available on this system."
+        )
     print(f"\n🎙️  Recording {seconds} seconds from microphone...")
     print("   🗣️  Speak now in Hebrew...")
     audio = sd.rec(int(seconds * sr), samplerate=sr, channels=1, dtype="float32")
@@ -287,6 +295,10 @@ def live_mic_loop(
     bidi_reverse: bool = True,
     english_tags: bool = False,
 ):
+    if sd is None:
+        raise RuntimeError(
+            "sounddevice or PortAudio library is not available on this system."
+        )
     m, _ = load_model(model_key)
     sr = 16000
     accum = np.array([], dtype=np.float32)
