@@ -135,9 +135,13 @@ To verify that your setup is working without needing to speak into the microphon
 ```
 
 This script:
-1. Uses macOS's native Hebrew text-to-speech voice (`Carmit`) to synthesize a test sentence.
-2. Streams raw 16 kHz PCM chunks over WebSocket to `ws://localhost:8000/api/v1/live-transcribe`.
+1. Synthesizes a test sentence using macOS Carmit voice, or automatically falls back to clean synthetic audio in headless Linux / CI environments (or pass `--synthetic` to force synthetic tone audio).
+2. Streams raw 16 kHz PCM chunks over WebSocket to `ws://localhost:8000/api/v1/live-transcribe` (customizable via `--url`).
 3. Measures and reports average, minimum, and peak latency for each partial and final transcription event.
+4. Pass `--help` to inspect all options:
+   ```bash
+   ./scripts/test_latency.py --help
+   ```
 
 ### 5.1 Interactive Comparison & Multi-Model Benchmark (`scripts/`)
 

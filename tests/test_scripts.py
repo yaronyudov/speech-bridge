@@ -63,3 +63,13 @@ def test_compare_hebrew_models_help():
     )
     assert result.returncode == 0
     assert "usage:" in result.stdout.lower()
+
+
+def test_test_latency_synthetic_audio_generation():
+    from scripts.test_latency import generate_audio, generate_synthetic_pcm
+
+    raw_pcm = generate_synthetic_pcm(duration_seconds=0.5, sample_rate=16000)
+    assert len(raw_pcm) == int(0.5 * 16000 * 2)
+
+    audio = generate_audio("בדיקה", force_synthetic=True)
+    assert len(audio) > 0
