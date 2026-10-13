@@ -189,7 +189,7 @@ async def live_transcribe(
     capped = _CappedWebSocket(websocket, settings.MAX_WS_BYTES, deadline)
     try:
         async for result in engine.transcribe_stream(capped, lang):
-            payload = {"type": result.type, "text": result.text}
+            payload: dict[str, Any] = {"type": result.type, "text": result.text}
             if result.latency_ms is not None:
                 payload["latency_ms"] = round(result.latency_ms, 1)
             await websocket.send_json(payload)
